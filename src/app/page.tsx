@@ -1,113 +1,174 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState, useRef, useEffect } from "react";
+import { HexColorPicker } from "react-colorful";
+import { debounce } from "lodash";
+
+interface DrawingCanvasProps {}
+
+const DrawingCanvas: React.FC<DrawingCanvasProps> = () => {
+  const [color, setColor] = useState<string>("#000000");
+  const [brushSize, setBrushSize] = useState<number>(5);
+  const [isDrawing, setIsDrawing] = useState<boolean>(false);
+  const [isErasing, setIsErasing] = useState(false);
+  const [divSize, setDivSize] = useState({ width: 30, height: 30 });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const divRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    if (canvas) {
+      const context = canvas.getContext("2d");
+
+      if (context) {
+        context.lineCap = "round";
+        context.strokeStyle = color;
+        context.lineWidth = brushSize;
+        contextRef.current = context;
+      }
+    }
+  }, [color, brushSize]);
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const { offsetX, offsetY } = e.nativeEvent;
+
+    if (contextRef.current) {
+      contextRef.current.beginPath();
+      contextRef.current.moveTo(offsetX, offsetY);
+      contextRef.current.lineWidth = brushSize;
+      if (isErasing) {
+        contextRef.current.strokeStyle = "white";
+      } else {
+        contextRef.current.strokeStyle = color;
+      }
+      setIsDrawing(true);
+    }
+  };
+
+  const saveCanvasToLocalStorage = () => {
+    const canvasData = canvasRef.current!.toDataURL();
+
+    localStorage.setItem("canvasData", canvasData);
+  };
+
+  const finishDrawing = () => {
+    if (contextRef.current) {
+      contextRef.current.closePath();
+      setIsDrawing(false);
+
+      saveCanvasToLocalStorage();
+    }
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !contextRef.current) return;
+
+    const { offsetX, offsetY } = e.nativeEvent;
+    contextRef.current.lineTo(offsetX, offsetY);
+    contextRef.current.stroke();
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+
+    if (canvas) {
+      const context = canvas.getContext("2d");
+
+      if (context) {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    setIsErasing(false);
+  };
+
+  const handleColorChange = (color: string) => {
+    setColor(color);
+  };
+
+  const handleBrushSizeChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setBrushSize(Number(event.target.value));
+  };
+
+  const loadCanvasFromLocalStorage = () => {
+    const canvasData = localStorage.getItem("canvasData");
+
+    if (canvasData) {
+      const img = new Image();
+      img.src = canvasData;
+      const context = canvasRef.current!.getContext("2d");
+      img.onload = () => {
+        context!.drawImage(img, 0, 0);
+      };
+      console.log(context);
+    }
+  };
+
+  useEffect(() => {
+    const handleResize = debounce(() => {
+      if (divRef.current) {
+        setDivSize({
+          width: window.innerWidth - 200,
+          height: divRef.current.offsetHeight,
+        });
+      }
+      loadCanvasFromLocalStorage();
+    }, 200);
+    handleResize();
+    loadCanvasFromLocalStorage();
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+    <div
+      style={{
+        display: "flex",
+        width: "100vw",
+        height: "100vh",
+        overflow: "hidden",
+      }}
+    >
+      <div ref={divRef} style={{ width: "100%", height: "100%" }}>
+        <canvas
+          ref={canvasRef}
+          width={divSize.width}
+          height={divSize.height}
+          style={{
+            border: "1px solid #000",
+          }}
+          onMouseDown={startDrawing}
+          onMouseUp={finishDrawing}
+          onMouseMove={draw}
+          onMouseLeave={() => setIsDrawing(false)}
         />
       </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+      <div>
+        <label htmlFor="color">Цвет кисти:</label>
+        <HexColorPicker color={color} onChange={handleColorChange} />
+        <label htmlFor="brushSize">Толщина кисти:</label>
+        <input
+          type="range"
+          id="brushSize"
+          min="1"
+          max="50"
+          value={brushSize}
+          onChange={handleBrushSizeChange}
+        />
+        <button onClick={clearCanvas}>Очистить холст</button>
+        <button onClick={() => setIsErasing((prevState) => !prevState)}>
+          {isErasing ? "ластик" : "кисть"}
+        </button>
       </div>
-    </main>
+    </div>
   );
-}
+};
+
+export default DrawingCanvas;
