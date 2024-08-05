@@ -62,6 +62,7 @@ const Canvas: React.FC<ICanvas> = ({
       contextRef.current.beginPath();
       contextRef.current.moveTo(offsetX, offsetY);
       contextRef.current.lineWidth = brushSize;
+
       if (isErasing) {
         contextRef.current.strokeStyle = "white";
       } else {
